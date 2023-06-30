@@ -1,0 +1,12 @@
+let identifierSystem = $exchange.properties.ehrSystemId
+let identifierValue = $exchange.properties.ehrId
+let newIdentifier = {"system": $identifierSystem, "value": $identifierValue}
+
+{
+    "identifier": if (is-array(.identifier))
+        flatten([[for (.identifier) . if (.system != $identifierSystem)], [$newIdentifier]])
+    else
+        [$newIdentifier]
+    ,
+    * : .
+}

@@ -1,0 +1,57 @@
+---
+
+certManager:
+  issuerRef:
+    name: ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+ehrbase:
+  enabled: true
+
+ehrbasedb:
+  enabled: true
+  name: ehrbase-db
+  postgresVersion: 15
+  patroni:
+    dynamicConfiguration:
+      postgresql:
+        pg_hba:
+          - "hostssl ehrbase ehrbase-db-admin all cert"
+          - "hostssl ehrbase ehrbase-db-user all cert"
+          - "hostssl all all all md5"
+  users:
+    - name: postgres
+    - name: ehrbase-db-admin
+      databases:
+        - ehrbase
+    - name: ehrbase-db-user
+      databases:
+        - ehrbase
+  customTLSSecret:
+    name: ehrbase-db-tls
+  databaseInitSQL:
+    name: ehrbase-db-initdb
+    key: ehrbase-db-initdb.sql
+
+
+hapifhir:
+  enabled: true
+hapifhirdb:
+  enabled: true
+  name: hapi-fhir-db
+  postgresVersion: 15
+  patroni:
+    dynamicConfiguration:
+      postgresql:
+        pg_hba:
+          - "hostssl hapi hapi-fhir-db-user all cert"
+          - "hostssl all all all md5"
+  users:
+    - name: postgres
+    - name: hapi-fhir-db-user
+      databases:
+        - hapi
+      options: "SUPERUSER"
+  customTLSSecret:
+    name: hapi-fhir-db-tls

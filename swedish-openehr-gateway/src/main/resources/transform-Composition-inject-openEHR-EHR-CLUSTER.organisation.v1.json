@@ -1,0 +1,183 @@
+// Injection JSLT from Apache Camel for adding the cluster "openEHR-EHR-CLUSTER.organisation.v1" to an openEHR COMPOSITION
+//   per Swedish PDL Guidelines here: https://openehr.atlassian.net/wiki/pages/viewpage.action?pageId=1952481372
+// Currently relies on what is modelled in the Swedish Template "Care unit v1" version 1.0.1-rc2
+//   https://github.com/modellbibliotek/CKM-mirror/blob/54951c2c765721537b90dab9efb495d28fe6baed/local/pdl/Care%20unit%20v1.t.json
+//   ... including hard-coding of node_ids and the value for various SNOMED codes
+
+// Text names for nodes within the resulting Composition are read from the template using a pre-determined flat JSON file format
+//   (see template-OrgClusterPropertiesJson.xslt)
+// All parameters are sent as properties from the Apache Camel Exchange
+
+
+// Receive template properties as a string but parse them into a JSON object with from-json()
+let templateProperties = from-json($exchange.properties.templateProperties)
+
+// The rest of the properties for dynamic values will come as single values
+let hsaidType = $exchange.properties.hsaidType
+let orgnumberType = $exchange.properties.orgnumberType
+
+let healthCareFacilityName = $exchange.properties.healthCareFacilityName
+
+let healthCareUnitId = $exchange.properties.healthCareUnitId
+let healthCareUnitName = $exchange.properties.healthCareUnitName
+
+let healthCareProviderId = $exchange.properties.healthCareProviderId
+let healthCareProviderName = $exchange.properties.healthCareProviderName
+let healthCareProviderOrgnumber = $exchange.properties.healthCareProviderOrgnumber
+
+let OrganizationCluster = {
+    "_type": "CLUSTER",
+    "name": {
+        "_type": "DV_TEXT",
+        "value": $templateProperties.careunit_at0000_name
+    },
+    "archetype_node_id": $templateProperties.organization_cluster_archetype_id,
+    "archetype_details": {
+        "archetype_id": {
+            "value": $templateProperties.organization_cluster_archetype_id
+        },
+        "rm_version": $templateProperties.rm_version
+    },
+    "items": [
+        {
+            "_type": "ELEMENT",
+            "archetype_node_id": "at0001",
+            "name": {
+                "_type": "DV_TEXT",
+                "value": $templateProperties.careunit_at0001_name
+            },
+            "value": {
+                "_type": "DV_TEXT",
+                "value": $healthCareUnitName
+            }
+        },
+        {
+            "_type": "ELEMENT",
+            "archetype_node_id": "at0003",
+            "name": {
+                "_type": "DV_TEXT",
+                "value": $templateProperties.careunit_at0003_name
+            },
+            "value": {
+                "_type": "DV_IDENTIFIER",
+                "id": $healthCareUnitId,
+                "type": $hsaidType
+            }
+        },
+        {
+            "_type": "ELEMENT",
+            "archetype_node_id": "at0004",
+            "name": {
+                "_type": "DV_TEXT",
+                "value": $templateProperties.careunit_at0004_name
+            },
+            "value": {
+                "_type": "DV_CODED_TEXT",
+                "value": get-key($templateProperties, "careunit_http://snomed.info/sct/900000000000207008::43741000_name"),
+                "defining_code": {
+                    "_type": "CODE_PHRASE",
+                    "terminology_id": {
+                        "_type": "TERMINOLOGY_ID",
+                        "value": "http://snomed.info/sct/900000000000207008"
+                    },
+                    "code_string": "43741000"
+                }
+            }
+        },
+        {
+            "_type": "CLUSTER",
+            "name": {
+                "_type": "DV_TEXT",
+                "value": $templateProperties.careunit_careprovider_at0000_name
+            },
+            "archetype_node_id": $templateProperties.organization_cluster_archetype_id,
+            "items": [
+                {
+                    "_type": "ELEMENT",
+                    "archetype_node_id": "at0001",
+                    "name": {
+                        "_type": "DV_TEXT",
+                        "value": $templateProperties.careunit_careprovider_at0001_name
+                    },
+                    "value": {
+                        "_type": "DV_TEXT",
+                        "value": $healthCareProviderName
+                    }
+                },
+                { // for Care Provider, one instance of at0003 with HSA ID
+                    "_type": "ELEMENT",
+                    "archetype_node_id": "at0003",
+                    "name": {
+                        "_type": "DV_TEXT",
+                        "value": $templateProperties.careunit_careprovider_at0003_name
+                    },
+                    "value": {
+                        "_type": "DV_IDENTIFIER",
+                        "id": $healthCareProviderId,
+                        "type": $hsaidType
+                    }
+                },
+                { // ... and then a second Care Provider at0003 instance with orgnumber
+                    "_type": "ELEMENT",
+                    "archetype_node_id": "at0003",
+                    "name": {
+                        "_type": "DV_TEXT",
+                        "value": $templateProperties.careunit_careprovider_at0003_name
+                    },
+                    "value": {
+                        "_type": "DV_IDENTIFIER",
+                        "id": $healthCareProviderOrgnumber,
+                        "type": $orgnumberType
+                    }
+                },
+                {
+                    "_type": "ELEMENT",
+                    "archetype_node_id": "at0004",
+                    "name": {
+                        "_type": "DV_TEXT",
+                        "value": $templateProperties.careunit_careprovider_at0004_name
+                    },
+                    "value": {
+                        "_type": "DV_CODED_TEXT",
+                        "value": get-key($templateProperties, "careunit_careprovider_http://snomed.info/sct/45991000052106::143591000052106_name"),
+                        "defining_code": {
+                            "_type": "CODE_PHRASE",
+                            "terminology_id": {
+                                "_type": "TERMINOLOGY_ID",
+                                "value": "http://snomed.info/sct/45991000052106"
+                            },
+                            "code_string": "143591000052106"
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}
+
+{
+    "context": {
+        "other_context": {
+            "_type": "ITEM_TREE",
+            "archetype_node_id": $templateProperties.template_other_context_tree_node_id,
+            "name": {
+                "_type": "DV_TEXT",
+                "value": get-key($templateProperties, "template_" + $templateProperties.template_other_context_tree_node_id + "_name")
+            },
+            "items": if (is-array(.context.other_context.items))
+                flatten([[for (.context.other_context.items) . if (.archetype_node_id != $templateProperties.organization_cluster_archetype_id)], [$OrganizationCluster]])
+            else
+                [$OrganizationCluster]
+            ,
+            * : .
+        },
+
+        // in theory this should exist in the data ?? but at least add/replace the name for what was found on the Organization resource
+        "health_care_facility": {
+            "name": $healthCareFacilityName,
+            * : .
+        },
+        * : .
+    },
+    * : .
+}

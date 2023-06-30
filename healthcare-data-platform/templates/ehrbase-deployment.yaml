@@ -1,0 +1,151 @@
+{{- with .Values.ehrbase }}
+{{- if .enabled }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ehrbase
+  labels:
+    app: ehrbase
+spec:
+  replicas: 1 # TODO: Seems like here one pod gets all of the requests until it goes down, then Spring's DispatcherServlet starts up on the other pod. Maybe better to enable Spring's k8s loadbalancer in EHRbase?
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: ehrbase
+  template:
+    metadata:
+      labels:
+        app: ehrbase
+    spec:
+      initContainers:
+        - name: create-pk8-keys
+          image: alpine/openssl:latest
+          command:
+            - ash
+            - -c
+            - >-
+              openssl pkcs8 -topk8 -inform PEM -outform DER -v1 PBE-MD5-DES -passout pass:changeit -in /certs/admin/tls.key -out /certs/pk8/admin.pk8;
+              chmod 600 /certs/pk8/admin.pk8;
+              openssl pkcs8 -topk8 -inform PEM -outform DER -v1 PBE-MD5-DES -passout pass:changeit -in /certs/user/tls.key -out /certs/pk8/user.pk8;
+              chmod 600 /certs/pk8/user.pk8;
+          volumeMounts:
+          - name: ehrbase-db-admin-tls
+            readOnly: true
+            mountPath: /certs/admin
+          - name: ehrbase-db-user-tls
+            readOnly: true
+            mountPath: /certs/user
+          - name: certs-pk8
+            mountPath: /certs/pk8
+      containers:
+        - name: ehrbase
+          image: ehrbase/ehrbase:0.27.4
+          ports:
+            - containerPort: 8080
+          env:
+            # TODO: Could possibly create a custom application.yaml file with a new profile name and mount that into the container instead?
+            #  then set _JAVA_OPTIONS="-Dspring.profiles.active=whatever-new-profile-name" instead of the below
+            - name: _JAVA_OPTIONS
+              value: >-
+                -Dspring.datasource.url=jdbc:postgresql://{{ $.Values.ehrbasedb.name }}-ha:5432/ehrbase?sslmode=verify-full&sslrootcert=/certs/user/ca.crt&sslcert=/certs/user/tls.crt&sslkey=/certs/pk8/user.pk8&sslpassword=changeit
+                -Dspring.flyway.url=jdbc:postgresql://{{ $.Values.ehrbasedb.name }}-ha:5432/ehrbase?sslmode=verify-full&sslrootcert=/certs/admin/ca.crt&sslcert=/certs/admin/tls.crt&sslkey=/certs/pk8/admin.pk8&sslpassword=changeit
+
+            - name: DB_URL
+              value: jdbc:postgresql://{{ $.Values.ehrbasedb.name }}-ha:5432/ehrbase?sslmode=verify-full&sslrootcert=/certs/user/ca.crt&sslcert=/certs/user/tls.crt&sslkey=/certs/pk8/user.pk8&sslpassword=changeit
+            - name: DB_USER
+              value: ehrbase-db-user
+            - name: DB_USER_ADMIN
+              value: ehrbase-db-admin
+
+            - name: DB_PASS
+              value: notused
+            - name: DB_PASS_ADMIN
+              value: notused
+
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE
+              value: env,health,info,metrics,prometheus
+            - name: MANAGEMENT_ENDPOINTS_WEB_BASEPATH
+              value: /management
+            - name: MANAGEMENT_ENDPOINT_HEALTH_ENABLED
+              value: "true"
+            - name: MANAGEMENT_ENDPOINT_ENV_ENABLED
+              value: "true"
+            - name: MANAGEMENT_ENDPOINT_INFO_ENABLED
+              value: "true"
+            - name: MANAGEMENT_ENDPOINT_METRICS_ENABLED
+              value: "true"
+            - name: MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED
+              value: "false"
+            - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
+              value: "true"
+            - name: MANAGEMENT_ENDPOINT_HEALTH_DATASOURCE_ENABLED
+              value: "true"
+            - name: SYSTEM_ALLOW_TEMPLATE_OVERWRITE
+              value: "true"
+          # readinessProbe:
+          #   httpGet:
+          #     path: /api/healthy
+          #     port: 8080
+          #     scheme: HTTP
+          #   timeoutSeconds: 1
+          #   periodSeconds: 10
+          #   successThreshold: 1
+          #   failureThreshold: 3
+          # livenessProbe:
+          #   httpGet:
+          #     path: /api/healthy
+          #     port: 8080
+          #     scheme: HTTP
+          #   timeoutSeconds: 1
+          #   periodSeconds: 10
+          #   successThreshold: 1
+          #   failureThreshold: 3
+          # startupProbe:
+          #   httpGet:
+          #     path: /api/healthy
+          #     port: 8080
+          #     scheme: HTTP
+          #   timeoutSeconds: 1
+          #   periodSeconds: 10
+          #   successThreshold: 1
+          #   failureThreshold: 3
+          volumeMounts:
+          - name: ehrbase-db-admin-tls
+            readOnly: true
+            mountPath: /certs/admin
+          - name: ehrbase-db-user-tls
+            readOnly: true
+            mountPath: /certs/user
+          - name: certs-pk8
+            mountPath: /certs/pk8
+      volumes:
+      - name: ehrbase-db-admin-tls
+        secret:
+          secretName: ehrbase-db-admin-tls
+          defaultMode: 0600
+      - name: ehrbase-db-user-tls
+        secret:
+          secretName: ehrbase-db-user-tls
+          defaultMode: 0600
+      - name: certs-pk8
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ehrbase
+  labels:
+    app: ehrbase
+spec:
+  selector:
+    app: ehrbase
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+
+{{- end }}
+{{- end }}

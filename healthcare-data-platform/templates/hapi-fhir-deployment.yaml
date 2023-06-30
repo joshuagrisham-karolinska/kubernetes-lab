@@ -1,0 +1,121 @@
+{{- with .Values.hapifhir }}
+{{- if .enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hapi-fhir-config
+data:
+  application.yaml: |+
+    spring:
+      datasource:
+        url: jdbc:postgresql://{{ $.Values.hapifhirdb.name }}-ha:5432/hapi?sslmode=verify-full&sslrootcert=/certs/user/ca.crt&sslcert=/certs/user/tls.crt&sslkey=/certs/pk8/user.pk8&sslpassword=changeit
+        username: hapi-fhir-db-user
+        password: notused
+        driverClassName: org.postgresql.Driver
+      jpa:
+        properties:
+          hibernate.dialect: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgres94Dialect
+          hibernate.search.enabled: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hapi-fhir
+  labels:
+    app: hapi-fhir
+spec:
+  replicas: 1 # TODO: ?
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: hapi-fhir
+  template:
+    metadata:
+      labels:
+        app: hapi-fhir
+    spec:
+      initContainers:
+        - name: create-pk8-keys
+          image: alpine/openssl:latest
+          command:
+            - ash
+            - -c
+            - >-
+              openssl pkcs8 -topk8 -inform PEM -outform DER -v1 PBE-MD5-DES -passout pass:changeit -in /certs/user/tls.key -out /certs/pk8/user.pk8;
+              chmod 777 /certs/pk8/user.pk8;
+          volumeMounts:
+          - name: hapi-fhir-db-user-tls
+            readOnly: true
+            mountPath: /certs/user
+          - name: certs-pk8
+            mountPath: /certs/pk8
+      containers:
+        - name: hapi-fhir
+          image: hapiproject/hapi:v6.6.0
+          ports:
+            - containerPort: 8080
+          # readinessProbe:
+          #   httpGet:
+          #     path: /api/healthy
+          #     port: 8080
+          #     scheme: HTTP
+          #   timeoutSeconds: 1
+          #   periodSeconds: 10
+          #   successThreshold: 1
+          #   failureThreshold: 3
+          # livenessProbe:
+          #   httpGet:
+          #     path: /api/healthy
+          #     port: 8080
+          #     scheme: HTTP
+          #   timeoutSeconds: 1
+          #   periodSeconds: 10
+          #   successThreshold: 1
+          #   failureThreshold: 3
+          # startupProbe:
+          #   httpGet:
+          #     path: /api/healthy
+          #     port: 8080
+          #     scheme: HTTP
+          #   timeoutSeconds: 1
+          #   periodSeconds: 10
+          #   successThreshold: 1
+          #   failureThreshold: 3
+          volumeMounts:
+          - name: hapi-fhir-db-user-tls
+            readOnly: true
+            mountPath: /certs/user
+          - name: certs-pk8
+            mountPath: /certs/pk8
+          - name: hapi-fhir-config
+            readOnly: true
+            mountPath: /app/config
+      volumes:
+      - name: hapi-fhir-db-user-tls
+        secret:
+          secretName: hapi-fhir-db-user-tls
+          defaultMode: 0777
+      - name: certs-pk8
+        emptyDir: {}
+      - name: hapi-fhir-config
+        configMap:
+          name: hapi-fhir-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hapi-fhir
+  labels:
+    app: hapi-fhir
+spec:
+  selector:
+    app: hapi-fhir
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+
+{{- end }}
+{{- end }}

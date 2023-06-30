@@ -1,0 +1,220 @@
+{{- with .Values.hapifhirdb }}
+{{- if .enabled }}
+---
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: {{ .name }}
+spec:
+  postgresVersion: {{ required "You must set the version of Postgres to deploy." .postgresVersion }}
+  {{- if .postGISVersion }}
+  postGISVersion: {{ quote .postGISVersion }}
+  {{- end }}
+  {{- if .imagePostgres }}
+  image: {{ .imagePostgres | quote }}
+  {{- end }}
+  {{- if .port }}
+  port: {{ .port }}
+  {{- end }}
+  {{- if .instances }}
+  instances:
+{{ toYaml .instances | indent 4 }}
+  {{- else }}
+  instances:
+    - name: {{ default "instance1" .instanceName | quote }}
+      replicas: {{ default 1 .instanceReplicas }}
+      dataVolumeClaimSpec:
+        {{- if .instanceStorageClassName }}
+        storageClassName: {{ .instanceStorageClassName | quote }}
+        {{- end }}
+        accessModes:
+        - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: {{ default "1Gi" .instanceSize | quote }}
+      {{- if or .instanceMemory .instanceCPU }}
+      resources:
+        limits:
+          cpu: {{ default "" .instanceCPU | quote }}
+          memory: {{ default "" .instanceMemory | quote }}
+      {{- end }}
+  {{- end }}
+  backups:
+    pgbackrest:
+      {{- if .imagePgBackRest }}
+      image: {{ .imagePgBackRest | quote }}
+      {{- end }}
+      {{- if .pgBackRestConfig }}
+{{ toYaml .pgBackRestConfig | indent 6 }}
+      {{- else if .multiBackupRepos }}
+      configuration:
+      - secret:
+          name: {{ .name }}-pgbackrest-secret
+      global:
+        {{- range $index, $repo := .multiBackupRepos }}
+        {{- if or $repo.s3 $repo.gcs $repo.azure }}
+        repo{{ add $index 1 }}-path: /pgbackrest/{{ $.Release.Namespace }}/{{ default $.Release.Name $.name }}/repo{{ add $index 1 }}
+        {{- end }}
+        {{- end }}
+      repos:
+      {{- range $index, $repo := .multiBackupRepos }}
+      - name: repo{{ add $index 1 }}
+        {{- if $repo.volume }}
+        volume:
+          volumeClaimSpec:
+            {{- if $repo.volume.backupsStorageClassName }}
+            storageClassName: {{ .backupsStorageClassName | quote }}
+            {{- end }}
+            accessModes:
+            - "ReadWriteOnce"
+            resources:
+              requests:
+                storage: {{ default "1Gi" $repo.volume.backupsSize | quote }}
+        {{- else if $repo.s3 }}
+        s3:
+          bucket: {{ $repo.s3.bucket | quote }}
+          endpoint: {{ $repo.s3.endpoint | quote }}
+          region: {{ $repo.s3.region | quote }}
+        {{- else if $repo.gcs }}
+        gcs:
+          bucket: {{ $repo.gcs.bucket | quote }}
+        {{- else if $repo.azure }}
+        azure:
+          container: {{ $repo.azure.container | quote }}
+        {{- end }}
+      {{- end }}
+      {{- else if .s3 }}
+      configuration:
+      - secret:
+          name: {{ .name }}-pgbackrest-secret
+      global:
+        repo1-path: /pgbackrest/{{ $.Release.Namespace }}/{{ .name }}/repo1
+        {{- if .s3.encryptionPassphrase }}
+        repo1-cipher-type: aes-256-cbc
+        {{- end }}
+      repos:
+      - name: repo1
+        s3:
+          bucket: {{ .s3.bucket | quote }}
+          endpoint: {{ .s3.endpoint | quote }}
+          region: {{ .s3.region | quote }}
+      {{- else if .gcs }}
+      configuration:
+      - secret:
+          name: {{ .name }}-pgbackrest-secret
+      global:
+        repo1-path: /pgbackrest/{{ $.Release.Namespace }}/{{ .name }}/repo1
+      repos:
+      - name: repo1
+        gcs:
+          bucket: {{ .gcs.bucket | quote }}
+      {{- else if .azure }}
+      configuration:
+      - secret:
+          name: {{ .name }}-pgbackrest-secret
+      global:
+        repo1-path: /pgbackrest/{{ $.Release.Namespace }}/{{ .name }}/repo1
+      repos:
+      - name: repo1
+        azure:
+          container: {{ .azure.container | quote }}
+      {{- else }}
+      repos:
+      - name: repo1
+        volume:
+          volumeClaimSpec:
+            {{- if .backupsStorageClassName }}
+            storageClassName: {{ .backupsStorageClassName | quote }}
+            {{- end }}
+            accessModes:
+            - "ReadWriteOnce"
+            resources:
+              requests:
+                storage: {{ default "1Gi" .backupsSize | quote }}
+      {{- end }}
+  {{- if or .pgBouncerReplicas .pgBouncerConfig }}
+  proxy:
+    pgBouncer:
+      {{- if .imagePgBouncer }}
+      image: {{ .imagePgBouncer | quote }}
+      {{- end }}
+      {{- if .pgBouncerConfig }}
+{{ toYaml .pgBouncerConfig | indent 6 }}
+      {{- else }}
+      replicas: {{ .pgBouncerReplicas }}
+      {{- end }}
+  {{- end }}
+  {{- if .patroni }}
+  patroni:
+{{ toYaml .patroni | indent 4 }}
+  {{- end }}
+  {{- if .users }}
+  users:
+{{ toYaml .users | indent 4 }}
+  {{- end }}
+  {{- if .service }}
+  service:
+{{ toYaml .service | indent 4 }}
+  {{- end }}
+  {{- if .dataSource }}
+  dataSource:
+{{ toYaml .dataSource | indent 4 }}
+  {{- end }}
+  {{- if .databaseInitSQL }}
+  databaseInitSQL:
+    name: {{ required "A ConfigMap name is required for running bootstrap SQL." .databaseInitSQL.name | quote }}
+    key: {{ required "A key in a ConfigMap containing any bootstrap SQL is required." .databaseInitSQL.key | quote }}
+  {{- end }}
+  {{- if .imagePullPolicy }}
+  imagePullPolicy: {{ .imagePullPolicy | quote }}
+  {{- end }}
+  {{- if .imagePullSecrets }}
+  imagePullSecrets:
+{{ toYaml .imagePullSecrets | indent 4 }}
+  {{- end }}
+  {{- if .disableDefaultPodScheduling }}
+  disableDefaultPodScheduling: true
+  {{- end }}
+  {{- if .metadata }}
+  metadata:
+{{ toYaml .metadata | indent 4 }}
+  {{- end }}
+  {{- if .monitoring }}
+  monitoring:
+    pgmonitor:
+      exporter:
+        image: {{ default "" .imageExporter | quote }}
+        {{- if .monitoringConfig }}
+{{ toYaml .monitoringConfig | indent 8 }}
+        {{- end }}
+  {{- end }}
+  {{- if .shutdown }}
+  shutdown: true
+  {{- end }}
+  {{- if .standby }}
+  standby:
+    enabled: {{ .standby.enabled }}
+    repoName: {{ .standby.repoName }}
+    host: {{ .standby.host }}
+    port: {{ .standby.port }}
+  {{- end }}
+  {{- if .supplementalGroups }}
+  supplementalGroups:
+{{ toYaml .supplementalGroups | indent 4 }}
+  {{- end }}
+  {{- if .openshift }}
+  openshift: true
+  {{- else if eq .openshift false }}
+  openshift: false
+  {{- end }}
+  {{- if .customTLSSecret }}
+  customTLSSecret:
+{{ toYaml .customTLSSecret | indent 4 }}
+  {{- end }}
+  {{- if .customReplicationTLSSecret }}
+  customReplicationTLSSecret:
+{{ toYaml .customReplicationTLSSecret | indent 4 }}
+  {{- end }}
+
+{{- end }}
+{{- end }}

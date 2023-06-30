@@ -1,0 +1,112 @@
+{{- with .Values.ehrbasedb }}
+{{- if .enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ehrbase-db-initdb
+data:
+{{ ($.Files.Glob "extras/ehrbase-db-initdb.sql").AsConfig | indent 2 }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .customTLSSecret.name }}
+spec:
+  dnsNames:
+    - "localhost"
+    - "{{ .name }}"
+    - "{{ .name }}-ha"
+    - "{{ .name }}-primary"
+    - "{{ .name }}-replicas"
+    - "{{ .name }}.{{ $.Release.Namespace }}"
+    - "{{ .name }}-ha.{{ $.Release.Namespace }}"
+    - "{{ .name }}-primary.{{ $.Release.Namespace }}"
+    - "{{ .name }}-replicas.{{ $.Release.Namespace }}"
+    - "{{ .name }}.{{ $.Release.Namespace }}.svc"
+    - "{{ .name }}-ha.{{ $.Release.Namespace }}.svc"
+    - "{{ .name }}-primary.{{ $.Release.Namespace }}.svc"
+    - "{{ .name }}-replicas.{{ $.Release.Namespace }}.svc"
+    - "{{ .name }}.{{ $.Release.Namespace }}.svc.cluster.local"
+    - "{{ .name }}-ha.{{ $.Release.Namespace }}.svc.cluster.local"
+    - "{{ .name }}-primary.{{ $.Release.Namespace }}.svc.cluster.local"
+    - "{{ .name }}-replicas.{{ $.Release.Namespace }}.svc.cluster.local"
+    - "*.{{ .name }}"
+    - "*.{{ .name }}-ha"
+    - "*.{{ .name }}-primary"
+    - "*.{{ .name }}-replicas"
+    - "*.{{ .name }}.{{ $.Release.Namespace }}"
+    - "*.{{ .name }}-ha.{{ $.Release.Namespace }}"
+    - "*.{{ .name }}-primary.{{ $.Release.Namespace }}"
+    - "*.{{ .name }}-replicas.{{ $.Release.Namespace }}"
+    - "*.{{ .name }}.{{ $.Release.Namespace }}.svc"
+    - "*.{{ .name }}-ha.{{ $.Release.Namespace }}.svc"
+    - "*.{{ .name }}-primary.{{ $.Release.Namespace }}.svc"
+    - "*.{{ .name }}-replicas.{{ $.Release.Namespace }}.svc"
+    - "*.{{ .name }}.{{ $.Release.Namespace }}.svc.cluster.local"
+    - "*.{{ .name }}-ha.{{ $.Release.Namespace }}.svc.cluster.local"
+    - "*.{{ .name }}-primary.{{ $.Release.Namespace }}.svc.cluster.local"
+    - "*.{{ .name }}-replicas.{{ $.Release.Namespace }}.svc.cluster.local"
+  secretName: {{ .customTLSSecret.name }}
+  issuerRef:
+{{ $.Values.certManager.issuerRef | toYaml | indent 4 }}
+  duration: 8760h # 365d
+  renewBefore: 240h # 10d
+  subject:
+    organizations:
+      - karolinska
+  commonName: {{ .name }}.{{ $.Release.Namespace }}.svc.cluster.local
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+  usages:
+    - server auth
+    - client auth
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ehrbase-db-admin-tls
+spec:
+  secretName: ehrbase-db-admin-tls
+  issuerRef:
+{{ $.Values.certManager.issuerRef | toYaml | indent 4 }}
+  duration: 8760h # 365d
+  renewBefore: 240h # 10d
+  subject:
+    organizations:
+      - karolinska
+  commonName: ehrbase-db-admin
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+  usages:
+    - client auth
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ehrbase-db-user-tls
+spec:
+  secretName: ehrbase-db-user-tls
+  issuerRef:
+{{ $.Values.certManager.issuerRef | toYaml | indent 4 }}
+  duration: 8760h # 365d
+  renewBefore: 240h # 10d
+  subject:
+    organizations:
+      - karolinska
+  commonName: ehrbase-db-user
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+  usages:
+    - client auth
+{{- end }}
+{{- end }}
