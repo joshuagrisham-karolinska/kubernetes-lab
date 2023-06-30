@@ -1,0 +1,86 @@
+## if you want to run with self-signed certificates:
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: selfsigned-issuer
+#   namespace: cert-manager
+# spec:
+#   selfSigned: {}
+# ---
+# apiVersion: cert-manager.io/v1
+# kind: Certificate
+# metadata:
+#   name: selfsigned-ca
+#   namespace: cert-manager
+# spec:
+#   isCA: true
+#   commonName: selfsigned-ca
+#   secretName: root-ca-secret
+#   privateKey:
+#     algorithm: ECDSA
+#     size: 256
+#   issuerRef:
+#     name: selfsigned-issuer
+#     kind: ClusterIssuer
+#     group: cert-manager.io
+# ---
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: ca-issuer
+#   namespace: cert-manager
+# spec:
+#   ca:
+#     secretName: root-ca-secret
+# 
+
+## otherwise use pre-built Root CA key/cert
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ca-key-pair
+data:
+  # certificates/root-ca.pem ->
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURCVENDQWUyZ0F3SUJBZ0lVZFUwNnpwMFM1OTNmb1NCUHNId1RYTko5YS80d0RRWUpLb1pJaHZjTkFRRUwKQlFBd0VqRVFNQTRHQTFVRUF3d0hhM1ZpWlMxallUQWVGdzB5TXpBek1qa3hNekUyTXpoYUZ3MHpNekF6TWpZeApNekUyTXpoYU1CSXhFREFPQmdOVkJBTU1CMnQxWW1VdFkyRXdnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUFBNElCCkR3QXdnZ0VLQW9JQkFRQ2Q4UENBK29hQmliTUNxWVVGSnVaTUdHcndtdDVZZWNFNDB5OGZ4OTVwN0F3dmY5d2cKVlFwclY3VWprSGFsZVNGbEM5YTVHbXZYNWhXVHluQWJJUjZjWHFQVklRSmhHQTlRQ3UxRFNyMlBjb1lUTHF3TApRN3F0dUJiTzdtVUlpb0ZaWjdsZGY3YTRSUnV3MkV3ekRMNWtjQWxTZUNzMTRNVlZZbUcyOHU0WlhnRG1SaUJyCng1bi90L2s0dklmaEFUL0d4SUpWQjlMdDVwN2ZVUTQ3R0MwREYxTzlHV1J4RVhsVzIvcnYyQmUydDFZWUZjM04KSXMybTBINXdFdkJkMWNWZzlXSjRvWGxna2dqbjhQS3Z6WGxvbGNzcDIzdytvU2JsSXAyUVpYUEYwbDUrWlhRUQpaa1VEY1dhRGMydm1LTUkzVjZ1SFYxeW9XRlBPcEZrQktjVUZBZ01CQUFHalV6QlJNQjBHQTFVZERnUVdCQlNCCnQvZCsrRFFXK2JvTjlad1pLUXhBQzVVZWx6QWZCZ05WSFNNRUdEQVdnQlNCdC9kKytEUVcrYm9OOVp3WktReEEKQzVVZWx6QVBCZ05WSFJNQkFmOEVCVEFEQVFIL01BMEdDU3FHU0liM0RRRUJDd1VBQTRJQkFRQlpUS1RQTFowdwpmdENDelNlWXcrbnF4UmJuaG5QRm1lSlhFNFY1K1lGd1h2ZjBBWFI4Zjl0dFJqdk5GTWNSeVAwdXBUcTlLRFNPCjRrZXJVTE9Ja2ZpR0pRalF2bEQxdkVlUTVtTzR6a3RYRnl6YnpJWUthRjFxNFJKUm81eW9nbG0vOEJzLytld00Kbi9rdDA3YUNyR09VOS84Nzh0ZEFKVzVGYUQ2MlhVU0Q2eG9mSHgvN3RXRTFhTTdrdEltcVo2U3hhUHpIWHpFYQozYzJDWXU4OHU1VHVZeUN1SE9la0V2WjRkVXpSM2hBOWdxQjA1bThIMXRLeGVyeS81VEpaM2JjaEh3MW55K1lrCjZHNE1YQVdrU21qMW1jOVpwVW1Xc2xEZlBkNmZ4NEpkUHpLU1dNSUljTmNWb3NCdmVJbGtMZVc3VWRYNy9kbVMKT1NDcUkxSld4eXlaCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  # certificates/root-ca-key.pem ->
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcFFJQkFBS0NBUUVBbmZEd2dQcUdnWW16QXFtRkJTYm1UQmhxOEpyZVdIbkJPTk12SDhmZWFld01MMy9jCklGVUthMWUxSTVCMnBYa2haUXZXdVJwcjErWVZrOHB3R3lFZW5GNmoxU0VDWVJnUFVBcnRRMHE5ajNLR0V5NnMKQzBPNnJiZ1d6dTVsQ0lxQldXZTVYWCsydUVVYnNOaE1Nd3krWkhBSlVuZ3JOZURGVldKaHR2THVHVjRBNWtZZwphOGVaLzdmNU9MeUg0UUUveHNTQ1ZRZlM3ZWFlMzFFT094Z3RBeGRUdlJsa2NSRjVWdHY2NzlnWHRyZFdHQlhOCnpTTE5wdEIrY0JMd1hkWEZZUFZpZUtGNVlKSUk1L0R5cjgxNWFKWExLZHQ4UHFFbTVTS2RrR1Z6eGRKZWZtVjAKRUdaRkEzRm1nM05yNWlqQ04xZXJoMWRjcUZoVHpxUlpBU25GQlFJREFRQUJBb0lCQUVoVzc4RVRmZ0hjME9uYQpQUHZrR2owbVBlemY4aER5QzBiOHF5dlNQcE9qTXQyYW9YY0puRkVZQmZZNUY2Nm9zVnYzdFN4bzVwWW5ZeUNpCjZ2L3lCblEyZ0xHQWdmZDRycUxKcm14UTBrdmVkM3hYdHlNZHJXWWQyQXlGY2k4Y1NTeHE3cUxkZVJJalRSQ04Kc1REOG1FT21jUTZkemFUS3czZGRMVVkvTkVEWGJqdHJZZjk1R0JBN3FOZTB6b2dWWU1tTVE2UGF4eDJsRzFuNwpXTkdEUzZmRktOZ1N6a1Nlbk5iWGR6UkIyZHdaWUtLbDB3cGNBaUw1VnhLR3BTWHZubldxdUVGOVFPRXc5M0RhCjRvZVFOY1Zsa2pZQlBsU3JobjA2YU81UjFTL2VScFc0UTRtVjgvNzd6T2Y2RUFPMUV4RG5iWWNwcVA0U2M0dlcKVnVEK2VFMENnWUVBeXVjNFdRQnExWmV2blM1RzdjVURCTmlIUUFOYTB0YVZlZDN4dVJUNHVDQTU4VXdPcDU4Qwo1cGlyem5ydzNLM3pEYVpPZHZGOVA4eW5oR2FESHFTcUpYWDU0SFB5WWNsZm8xS21mNGpQa1VLSGQvaWwxMU1ECkE0cTdYL05hSEFic3JoVU5LQ0ZOWmN0T0xCNkUvQ3VOM0hGaXl5TE00cGk2cVRIZVQrSHVBU3NDZ1lFQXgwV2wKd3dkSGxoeGpJTEpKUk5FV2ladE94bVlmb2RiSjF3VWVkVUJiQnRlbXdSYkE4akpnK3U2R2JqYTRzcmNSK0tzcgo2eVptQ2NOTzRxLzlSdHQ1V1oxeXhXWnpTWU05MGRIa1BiRWM5TXkrR2Nndml5R0U0a1FHZmZScnVrQ2V5OTFpCmplQ3IyTi9uU200RHR4SmhMK2MycHpadktzN1VZVXBZdW05cVdvOENnWUVBaERDNTVEcENZQit2MlI2U05VdzYKV0VqZGJOWUNzUVArWkdRMW5KaE9KbDlRZ0tWRmt1MGt6YWsvbllrNUxQempNY3hjcUY5U2MyTlk3QWlCZWxCYgpUWWFjSWlCSUZHOUdzTGdqSTBtMXVYUjNuN0RPRXdmUkdkaWpsTEtOelY2eGlnVExDbzhQeHJiNm1nSFVNQm9NCkZVZUZ6c1JBYVl5Slo3dkdrNUtsSmZzQ2dZRUFuM3VUWGRKZXJib01iK2Vna2k0UkxwS1k2bHBqYUtCQnJCQVIKdjErQk9xbXZjUXZuNGk4RnhPN1BzamVqZkl6ZUdqbk1qWWVPMUxOMldDRG53U1Q0S3d2REJrK25aeWRkZTZiVApWN2gvWjBEUnlFcWFHbXo2TUNpblZYa2dHdEdMQmJncUgwaTM0SHZhWFl4TTl1RUQzVlhjUE5scEFVYkZYUlFtCmpSZU1jK3NDZ1lFQXB4ZlU1LzlXVGxqbE8rVnRaS2xqbnI0REpBeWMzMlRSYlRzT3hvSXZJRXg0eitBMHk1Y2kKN2tSMlpSQktxdVRXTUNFd0xVbjJuS1BadVhXb29RSHJOUURuZDI2VjdhNFVNdXBxbm5CejZCbzN3SWlRVnZsaQpiNWcyNTFNRENRcGpsc3ExWDNqMFZiUWdra3ZiZHhrakcva1hQUGRHOXVxeVNNdzFoTWRrWEpVPQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: ca-issuer
+  namespace: cert-manager
+spec:
+  ca:
+    secretName: ca-key-pair
+
+
+# create a test certificate
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: selfsigned-cert-test
+spec:
+  secretName: selfsigned-cert-test-tls
+  dnsNames:
+    - self-signed.svc.cluster.local
+  issuerRef:
+    name: ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+  duration: 8760h # 365d
+  renewBefore: 240h # 10d
+  subject:
+    organizations:
+      - karolinska
+  commonName: self-signed.svc.cluster.local
+  isCA: false
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+  usages:
+    - server auth
+    - client auth
