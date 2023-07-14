@@ -7,6 +7,12 @@ metadata:
   name: hapi-fhir-config
 data:
   application.yaml: |+
+    hapi:
+      fhir:
+        fhir_version: 4
+        supported_resource_types:
+          - Patient
+          - Organization
     spring:
       datasource:
         url: jdbc:postgresql://{{ $.Values.hapifhirdb.name }}-ha:5432/hapi?sslmode=verify-full&sslrootcert=/certs/user/ca.crt&sslcert=/certs/user/tls.crt&sslkey=/certs/pk8/user.pk8&sslpassword=changeit

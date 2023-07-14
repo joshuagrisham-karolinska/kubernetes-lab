@@ -43,6 +43,8 @@ kubectl port-forward --namespace healthcare-data-platform service/hapi-fhir 8081
   "http://localhost:8081/fhir" \
   fhir-patient-ehrid-gateway/import-organizations.ndjson
 
+# update VDP if changes are made
+#helm upgrade --namespace healthcare-data-platform healthcare-data-platform healthcare-data-platform/
 # remove VDP if desired
 #helm delete --namespace healthcare-data-platform healthcare-data-platform
 
